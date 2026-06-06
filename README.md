@@ -1,6 +1,6 @@
 # Digital Trade
 
-live demo - 
+live demo - https://yashhh710.github.io/digital-trade-proto
 
 A futuristic streetwear fashion experience blending modern techwear aesthetics with premium urban culture. Digital Trade delivers bold silhouettes, oversized fits, and cinematic fashion visuals inspired by cyberpunk, minimal luxury, and next-generation street fashion.
 
