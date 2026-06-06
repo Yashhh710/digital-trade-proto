@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIGITAL TRADE</title>
+
+    <link rel="icon" href="models/logo.png" type="image/png" sizes="32x32">
+    <link rel="shortcut icon" href="models/logo.png" type="image/png">
+    <link rel="apple-touch-icon" href="models/logo.png" sizes="180x180">
+    <link rel="mask-icon" href="models/logo.png" color="#ffffff">
+    <meta name="theme-color" content="#0a0a0c">
+    <link rel="preload" as="image" href="models/8.png">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { background: #0a0a0c; overflow-x: hidden; }
+
+        .fullscreen-section { width: 100%; height: 100vh; position: relative; overflow: hidden; }
+        .image-container { width: 100%; height: 100%; }
+        .image-container img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+
+        /* HERO */
+        .hero-scroll-section { height: 100vh; position: relative; }
+        .hero-sticky { position: sticky; top: 0; width: 100%; height: 100vh; overflow: hidden; }
+        #heroImg {
+            width: 100%; height: 100%; object-fit: cover;
+            will-change: transform;
+            /* NO CSS transition — JS drives it via rAF */
+        }
+        .hero-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0); pointer-events: none; }
+
+        /* FRAME ANIM */
+        .anim-section { height: 400vh; position: relative; }
+        .sticky-container { position: sticky; top: 0; width: 100%; height: 100vh; overflow: hidden; }
+
+        /* SECTION 8 */
+        #section8 .image-container img { opacity: 1; }
+        #section8.in-view .image-container img {
+            animation: entrance 900ms cubic-bezier(.2,.9,.3,1) both,
+                       floatY 6s ease-in-out 1s infinite alternate;
+        }
+        @keyframes entrance {
+            from { transform: translateY(40px) scale(0.98); opacity: 0; }
+            to   { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes floatY {
+            from { transform: translateY(0) scale(1); }
+            to   { transform: translateY(-8px) scale(1.01); }
+        }
+
+        /* SECTION 7 */
+        #section7 { position: relative; height: 200vh; }
+
+        #section7 .image-container {
+            position: sticky; top: 0;
+            height: 100vh; width: 100%;
+            overflow: hidden;
+        }
+
+        /* Overlay: full cover, on top, JS moves it */
+        #s7overlay {
+            position: sticky;
+            top: 0;
+            width: 100%;
+            height: 100vh;
+            margin-top: -100vh;
+            z-index: 10;
+            overflow: hidden;
+            pointer-events: none;
+            /* GPU layer — no CSS transition, JS drives translateY */
+            will-change: transform;
+        }
+        #s7overlay img {
+            width: 100%; height: 100%;
+            object-fit: cover; object-position: center; display: block;
+            /* start fully offscreen below */
+            transform: translateY(100%);
+            will-change: transform;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HERO -->
+    <section class="hero-scroll-section" id="heroSection">
+        <div class="hero-sticky">
+            <div class="image-container">
+                <img id="heroImg" src="models/1.png" alt="">
+                <div class="hero-overlay" id="heroOverlay"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section class="fullscreen-section">
+        <div class="image-container"><img src="models/2.png" alt=""></div>
+    </section>
+
+    <!-- FRAME SEQUENCE -->
+    <section class="anim-section" id="animationTrigger">
+        <div class="sticky-container">
+            <div class="image-container">
+                <img id="scrollImage" src="models/main/ezgif-frame-001.jpg" alt="">
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 4 -->
+    <section class="fullscreen-section">
+        <div class="image-container"><img src="models/4.png" alt=""></div>
+    </section>
+    <!-- SECTION 5 -->
+    <section class="fullscreen-section">
+        <div class="image-container"><img src="models/5.png" alt=""></div>
+    </section>
+    <!-- SECTION 6 -->
+    <section class="fullscreen-section">
+        <div class="image-container"><img src="models/6.png" alt=""></div>
+    </section>
+
+    <!-- SECTION 7 (200vh: first vh = 7.png, second vh = 8.png slides up) -->
+    <section id="section7">
+        <div class="image-container">
+            <img src="models/7.png" alt="">
+        </div>
+        <div id="s7overlay">
+            <img id="s7img" src="models/bg.png" alt="">
+        </div>
+    </section>
+
+    <!-- SECTION 8 -->
+    <section id="section8" class="fullscreen-section">
+        <div class="image-container">
+            <img src="models/8.png" alt="" loading="eager">
+        </div>
+    </section>
+
+    <script>
+        /* ============================================================
+           All DOM reads happen once or in a single rAF loop.
+           NO layout-thrashing: we read scrollY once per frame,
+           batch all style writes together.
+        ============================================================ */
+
+        const heroImg      = document.getElementById("heroImg");
+        const heroOverlay  = document.getElementById("heroOverlay");
+        const imgElement   = document.getElementById('scrollImage');
+        const trigger      = document.getElementById('animationTrigger');
+        const section7     = document.getElementById('section7');
+        const s7img        = document.getElementById('s7img');
+        const totalFrames  = 271;
+        const padZero      = (n) => String(n).padStart(3, '0');
+
+        /* Pre-cache layout values (recalc on resize only) */
+        let vh         = window.innerHeight;
+        let trigTop    = trigger.offsetTop;
+        let trigH      = trigger.offsetHeight;
+        let s7Top      = section7.offsetTop;
+
+        window.addEventListener('resize', () => {
+            vh      = window.innerHeight;
+            trigTop = trigger.offsetTop;
+            trigH   = trigger.offsetHeight;
+            s7Top   = section7.offsetTop;
+        }, { passive: true });
+
+        /* Preload frames */
+        for (let i = 1; i <= totalFrames; i++) {
+            const img = new Image();
+            img.src = `models/main/ezgif-frame-${padZero(i)}.jpg`;
+        }
+
+        /* ---- AUTO SCROLL hero ↔ section 2 ---- */
+        let autoScrolling = false;
+        window.addEventListener("wheel", (e) => {
+            if (autoScrolling) return;
+            if (window.scrollY < 50 && e.deltaY > 0) {
+                autoScrolling = true;
+                window.scrollTo({ top: vh, behavior: "smooth" });
+                setTimeout(() => { autoScrolling = false; }, 1200);
+            } else if (window.scrollY > vh - 50 && window.scrollY < vh + 50 && e.deltaY < 0) {
+                autoScrolling = true;
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                setTimeout(() => { autoScrolling = false; }, 1200);
+            }
+        }, { passive: true });
+
+        /* ---- SECTION 8 REVEAL ---- */
+        (function () {
+            const s8 = document.getElementById('section8');
+            if (!s8) return;
+            if (!('IntersectionObserver' in window)) { s8.classList.add('in-view'); return; }
+            new IntersectionObserver((entries) => {
+                entries.forEach(e => s8.classList.toggle('in-view', e.intersectionRatio > 0.08));
+            }, { threshold: [0, 0.08, 0.25, 0.5] }).observe(s8);
+        })();
+
+        /* ============================================================
+           SINGLE rAF LOOP — reads scroll once, writes all styles once
+        ============================================================ */
+
+        let rafId       = null;
+        let lastScrollY = -1;
+        let lastFrame   = -1;        // track last frame src to avoid redundant sets
+        let lastS7pct   = null;
+
+        function tick() {
+            rafId = null;
+            const scrollY = window.scrollY;
+            if (scrollY === lastScrollY) return; // nothing changed
+            lastScrollY = scrollY;
+
+            /* 1. Hero parallax */
+            const heroProgress = Math.min(1, scrollY / vh);
+            heroImg.style.transform  = `translateY(${heroProgress * -120}px)`;
+            heroImg.style.filter     = `blur(${heroProgress * 2}px)`;
+            heroOverlay.style.background = `rgba(0,0,0,${heroProgress * 0.5})`;
+
+            /* 2. Frame sequence — compute without getBoundingClientRect (no layout) */
+            const relTop    = trigTop - scrollY;          // top of trigger relative to viewport
+            const relBottom = relTop + trigH;             // bottom
+
+            let frameIndex;
+            if (relTop <= 0 && relBottom >= vh) {
+                const frac = (-relTop) / (trigH - vh);
+                frameIndex = Math.min(totalFrames, Math.max(1, Math.floor(frac * totalFrames) + 1));
+            } else if (relTop > 0) {
+                frameIndex = 1;
+            } else {
+                frameIndex = totalFrames;
+            }
+
+            if (frameIndex !== lastFrame) {
+                imgElement.src = `models/main/ezgif-frame-${padZero(frameIndex)}.jpg`;
+                lastFrame = frameIndex;
+            }
+
+            /* 3. Section 7 overlay — slide 8.png up during second vh of section7 */
+            const phase2Start = s7Top + vh;
+            const scrollInto  = scrollY - phase2Start;
+
+            let pct;
+            if (scrollInto <= 0) {
+                pct = 100;
+            } else if (scrollInto >= vh) {
+                pct = 0;
+            } else {
+                pct = 100 - (scrollInto / vh) * 100;
+            }
+
+            if (pct !== lastS7pct) {
+                s7img.style.transform = `translateY(${pct}%)`;
+                lastS7pct = pct;
+            }
+        }
+
+        /* Schedule one rAF per scroll event (debounced to one frame) */
+        window.addEventListener('scroll', () => {
+            if (!rafId) rafId = requestAnimationFrame(tick);
+        }, { passive: true });
+
+        /* Run once on load */
+        tick();
+    </script>
+</body>
+</html>
